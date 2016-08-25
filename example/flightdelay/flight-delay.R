@@ -1,4 +1,4 @@
-flightorigData <- read.csv2('~/tmp/582845192_T_ONTIME.csv', sep=",", header=TRUE, stringsAsFactors=FALSE)
+origData <- read.csv2('~/tmp/582845192_T_ONTIME.csv', sep=",", header=TRUE, stringsAsFactors=FALSE)
 
 nrow(origData)
 
@@ -45,3 +45,39 @@ onTimeData$CARRIER <- as.factor(onTimeData$CARRIER)
 
 tapply(onTimeData$ARR_DEL15, onTimeData$ARR_DEL15, length)
 (6460 / (25664 + 6460))
+
+# Training 
+# The Caret Package only needs to be installed once
+#install.packages('caret')
+library(caret)
+
+set.seed(122515)
+featureCols <- c("ARR_DEL15", "DAY_OF_WEEK", "CARRIER", "DEST", "ORIGIN", "DEP_TIME_BLK")
+onTimeDataFiltered <- onTimeData[,featureCols]
+inTrainRows <- createDataPartition(onTimeDataFiltered$ARR_DEL15, p=0.70, list=FALSE)
+head(inTrainRows, 10)
+
+trainDataFiltered <- onTimeDataFiltered[inTrainRows,]
+testDataFiltered <- onTimeDataFiltered[-inTrainRows,]
+nrow(trainDataFiltered)/(nrow(testDataFiltered) + nrow(trainDataFiltered))
+nrow(testDataFiltered)/(nrow(testDataFiltered) + nrow(trainDataFiltered))
+
+logisticRegModel <- train(ARR_DEL15 ~ ., data=trainDataFiltered, method="glm", family="binomial")
+
+# I also had to install this package for the training to run
+#install.packages("e1071")
+
+logisticRegModel
+
+# Testing and refining the Trained Model
+logRegPrediction <- predict(logisticRegModel, testDataFiltered)
+logRegConfMat <- confusionMatrix(logRegPrediction, testDataFiltered[,"ARR_DEL15"])
+logRegConfMat
+
+#install.packages('randomForest')
+library(randomForest)
+
+rfModel <- randomForest(trainDataFiltered[-1], trainDataFiltered$ARR_DEL15, proximity = TRUE, importance = TRUE)
+rfValidation <- predict(rfModel, testDataFiltered)
+rfConfMat <- confusionMatrix(rfValidation, testDataFiltered[,"ARR_DEL15"])
+rfConfMat
